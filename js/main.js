@@ -61,7 +61,7 @@ async function requestRecommend(payload) {
 
   // [실패처리 3] 지연/타임아웃 — 20초 넘으면 중단
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 20000);
+  const timer = setTimeout(() => controller.abort(), 60000);
 
   try {
     const res = await fetch('/api/recommend', {
