@@ -33,16 +33,20 @@ def build_prompt(situation, mood, budget, exclude):
   ]
 }}"""
 
-
 def parse_gemini_json(text):
-    cleaned = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
-    try:
-        return json.loads(cleaned)
-    except json.JSONDecodeError:
-        match = re.search(r"\{.*\}", cleaned, re.DOTALL)
-        if match:
-            return json.loads(match.group(0))
-        raise
+    if not text:
+        raise ValueError("empty text")
+    s = text.strip()
+    if s.startswith("```"):
+        s = re.sub(r"^```[a-zA-Z]*", "", s).strip()
+        if s.endswith("```"):
+            s = s[:-3].strip()
+    start = s.find("{")
+    end = s.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        s = s[start:end + 1]
+    return json.loads(s)
+
 
 
 def call_gemini(api_key, prompt):
