@@ -23,16 +23,9 @@ def build_prompt(situation, mood, budget, exclude):
 - 예산(1인): {budget or '상관없음'}
 {exclude_line}
 
-[규칙]
-- 한국에서 실제로 먹거나 배달 가능한 현실적인 메뉴로만.
-- 제외 재료/메뉴는 절대 추천하지 마.
-- 각 메뉴마다 왜 지금 상황·기분에 맞는지 한 문장으로 설명.
-- 배달앱에 검색하면 바로 나올 검색어를 keyword에 넣어.
-- emoji는 음식과 어울리는 이모지 1개.
-
 반드시 아래 JSON 형식으로만, 다른 말 없이 응답해:
 {{
-  "comment": "오늘 같은 날엔 이거지! 같은 한 줄 코멘트",
+  "comment": "한 줄 코멘트",
   "menus": [
     {{"name": "메뉴명", "reason": "추천 이유 한 문장", "keyword": "배달앱 검색어", "emoji": "🍲"}},
     {{"name": "...", "reason": "...", "keyword": "...", "emoji": "..."}},
@@ -96,17 +89,17 @@ class handler(BaseHTTPRequestHandler):
         try:
             raw = call_gemini(api_key, prompt)
         except urllib.error.HTTPError as e:
-            detail = e.read().decode("utf-8", "ignore")[:200]
-            return self._send(502, {"error": f"AI 오류 ({e.code}): {detail}"})
+            detail = e.read().decode("utf-8", "ignore")[:300]
+            return self._send(502, {"error": "http_error", "code": e.code, "detail": detail})
         except urllib.error.URLError:
             return self._send(504, {"error": "AI 서버에 연결하지 못했어요."})
         except Exception as e:
             return self._send(500, {"error": f"서버 오류: {type(e).__name__}"})
 
-              try:
+        try:
             text = raw["candidates"][0]["content"]["parts"][0]["text"]
         except (KeyError, IndexError):
-            return self._send(502, {"error": "raw_no_text", "raw": json.dumps(raw)[:800]})
+            return self._send(502, {"error": "raw_no_text", "raw": json.dumps(raw)[:900]})
 
         try:
             data = parse_gemini_json(text)
@@ -115,4 +108,7 @@ class handler(BaseHTTPRequestHandler):
                 raise ValueError("empty")
             return self._send(200, {"comment": data.get("comment", ""), "menus": menus})
         except Exception:
-            return self._send(502, {"error": "parse_fail", "gemini_text": text[:800]})
+            return self._send(502, {"error": "parse_fail", "gemini_text": text[:900]})
+
+    def do_GET(self):
+        self._send(200, {"status": "ok"})
