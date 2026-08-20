@@ -2,7 +2,8 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import re
-import requests
+import urllib.request
+import urllib.error
 
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/"
@@ -40,7 +41,6 @@ def build_prompt(situation, mood, budget, exclude):
 
 
 def parse_gemini_json(text):
-    """모델 응답에서 JSON만 안전하게 추출."""
     cleaned = re.sub(r"^```(?:json)?|```$", "", text.strip(), flags=re.MULTILINE).strip()
     try:
         return json.loads(cleaned)
@@ -49,6 +49,22 @@ def parse_gemini_json(text):
         if match:
             return json.loads(match.group(0))
         raise
+
+
+def call_gemini(api_key, prompt):
+    payload = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.95, "maxOutputTokens": 900},
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        GEMINI_URL,
+        data=payload,
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+        method="POST",
+    )
+    with urllib.request.urlopen(req, timeout=18) as resp:
+        return json.loads(resp.read().decode("utf-8"))
 
 
 class handler(BaseHTTPRequestHandler):
@@ -77,25 +93,17 @@ class handler(BaseHTTPRequestHandler):
         prompt = build_prompt(situation, mood, body.get("budget", ""), body.get("exclude", ""))
 
         try:
-            resp = requests.post(
-                GEMINI_URL,
-                headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
-                json={
-                    "contents": [{"parts": [{"text": prompt}]}],
-                    "generationConfig": {"temperature": 0.95, "maxOutputTokens": 900},
-                },
-                timeout=18,
-            )
-        except requests.exceptions.Timeout:
-            return self._send(504, {"error": "AI 응답이 지연됐어요."})
-        except requests.exceptions.RequestException:
-            return self._send(502, {"error": "AI 서버에 연결하지 못했어요."})
-
-        if resp.status_code != 200:
-            return self._send(502, {"error": f"AI 오류 ({resp.status_code})"})
+            raw = call_gemini(api_key, prompt)
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", "ignore")[:200]
+            return self._send(502, {"error": f"AI 오류 ({e.code}): {detail}"})
+        except urllib.error.URLError:
+            return self._send(504, {"error": "AI 서버에 연결하지 못했어요."})
+        except Exception as e:
+            return self._send(500, {"error": f"서버 오류: {type(e).__name__}"})
 
         try:
-            text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+            text = raw["candidates"][0]["content"]["parts"][0]["text"]
             data = parse_gemini_json(text)
             menus = data.get("menus", [])[:3]
             if not menus:
@@ -105,4 +113,4 @@ class handler(BaseHTTPRequestHandler):
             return self._send(502, {"error": "AI 응답을 이해하지 못했어요. 다시 시도해주세요."})
 
     def do_GET(self):
-        self._send(200, {"status": "ok", "usage": "POST로 situation, mood, budget, exclude 전송"})
+        self._send(200, {"status": "ok"})
