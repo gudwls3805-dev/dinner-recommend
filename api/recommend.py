@@ -103,15 +103,16 @@ class handler(BaseHTTPRequestHandler):
         except Exception as e:
             return self._send(500, {"error": f"서버 오류: {type(e).__name__}"})
 
-        try:
+              try:
             text = raw["candidates"][0]["content"]["parts"][0]["text"]
+        except (KeyError, IndexError):
+            return self._send(502, {"error": "raw_no_text", "raw": json.dumps(raw)[:800]})
+
+        try:
             data = parse_gemini_json(text)
             menus = data.get("menus", [])[:3]
             if not menus:
                 raise ValueError("empty")
             return self._send(200, {"comment": data.get("comment", ""), "menus": menus})
-        except (KeyError, IndexError, ValueError, json.JSONDecodeError):
-            return self._send(502, {"error": "AI 응답을 이해하지 못했어요. 다시 시도해주세요."})
-
-    def do_GET(self):
-        self._send(200, {"status": "ok"})
+        except Exception:
+            return self._send(502, {"error": "parse_fail", "gemini_text": text[:800]})
