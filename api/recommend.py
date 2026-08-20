@@ -61,7 +61,7 @@ def call_gemini(api_key, prompt):
         headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
         method="POST",
     )
-     with urllib.request.urlopen(req, timeout=25) as resp:
+     with urllib.request.urlopen(req, timeout=55) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
