@@ -52,7 +52,7 @@ def parse_gemini_json(text):
 def call_gemini(api_key, prompt):
     payload = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.95, "maxOutputTokens": 800},
+                "generationConfig": {"temperature": 0.9, "maxOutputTokens": 1500, "responseMimeType": "application/json"},
     }).encode("utf-8")
 
     req = urllib.request.Request(
