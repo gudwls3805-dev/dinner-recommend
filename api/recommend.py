@@ -52,7 +52,7 @@ def parse_gemini_json(text):
 def call_gemini(api_key, prompt):
     payload = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {"temperature": 0.95, "maxOutputTokens": 900},
+        "generationConfig": {"temperature": 0.95, "maxOutputTokens": 500},
     }).encode("utf-8")
 
     req = urllib.request.Request(
@@ -61,7 +61,7 @@ def call_gemini(api_key, prompt):
         headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
         method="POST",
     )
-     with urllib.request.urlopen(req, timeout=55) as resp:
+     with urllib.request.urlopen(req, timeout=25) as resp:
         return json.loads(resp.read().decode("utf-8"))
 
 
