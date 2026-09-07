@@ -64,7 +64,7 @@ async function requestRecommend(payload) {
   const timer = setTimeout(() => controller.abort(), 58000);
 
   try {
-    const res = await fetch('/api/recommend', {
+    const res = await fetch('/api/index', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
